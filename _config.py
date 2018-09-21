@@ -8,7 +8,3 @@ class PriorityTime:
     p3 = 0.27
     p2 = 0.57
     p1 = 1.1
-
-
-
-

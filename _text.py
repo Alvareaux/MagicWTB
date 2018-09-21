@@ -1,9 +1,14 @@
 # -*- coding: utf-8 -*-
 
+
 class SysMsgText:
     class DB:
         load = 'Файл загружен'
         nofile = 'Файл не найден'
+        saved = 'Файл сохранен'
+
+    class Token:
+        nofile = 'Файл с токеном не найден, введите токен:\n'
         saved = 'Файл сохранен'
 
 

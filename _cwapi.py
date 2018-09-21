@@ -102,4 +102,3 @@ def wtb(token, i_code, i_number, i_cost):
     "exactPrice": true
   }
 }''' % (token, i_code, i_number, i_cost))
-

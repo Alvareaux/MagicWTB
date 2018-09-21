@@ -1,4 +1,3 @@
 # -*- coding: utf-8 -*-
 
-owner_list = set([]) // List of telegram userID
-token = '' // Telegram bot token
+owner_list = set([65706097])

@@ -19,6 +19,18 @@ from telebot.apihelper import ApiException
 import pytz
 from peewee import *
 
+# Token creation
+
+if exists('token.txt'):
+    with open('token.txt') as f:
+        token = f.readline().strip()
+else:
+    msg = SysMsgText.Token.nofile
+    token = input(msg)
+    with open('token.txt', 'w') as f:
+        f.write(token)
+    print(SysMsgText.Token.saved)
+
 # Lib const
 bot = telebot.AsyncTeleBot(token)
 bot_id = int(token.split(':')[0])
