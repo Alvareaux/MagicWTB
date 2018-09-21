@@ -1,14 +1,11 @@
 # -*- coding: utf-8 -*-
 
-from _config import *
 from _script import *
 from _cwapi import *
 from _text import *
 from _personal import *
 
-import json
 import multiprocessing
-import sys
 import math
 import ast
 import time
@@ -19,7 +16,6 @@ import telebot
 from telebot import types
 from telebot.apihelper import ApiException
 
-import pika
 import pytz
 from peewee import *
 
@@ -70,8 +66,8 @@ class Trade(BaseModel):
 
     list = CharField(default='')
     list_text = CharField(default='')
-    
-    
+
+
 class Profile(BaseModel):
     atk = CharField(default='')
     ddef = CharField(default='')
@@ -108,33 +104,15 @@ def bot_start(m):
         bot.send_message(m.chat.id, TgMsgText.no_auth, parse_mode='Markdown')
         return False
 
-    if trade.priority == -1:
-        markup = types.ReplyKeyboardRemove(selective=False)
+    markup, k_priority = keyboard_markup(trade)
+
+    if k_priority == -1:
         bot.send_message(m.chat.id, TgMsgText.Priority.User.ban, reply_markup=markup)
-    elif trade.priority == 0:
-        markup = types.ReplyKeyboardRemove(selective=False)
+    elif k_priority == 0:
         bot.send_message(m.chat.id, TgMsgText.Priority.User.add, reply_markup=markup)
-    elif trade.priority in [1, 2]:
-        markup = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-        b_help = types.KeyboardButton('📖Помощь')
-        b_edit = types.KeyboardButton('📋Редактор списка')
-        if trade.enable:
-            b_start = types.KeyboardButton('❌Off')
-        else:
-            b_start = types.KeyboardButton('✅️On')
-        markup.row(b_help, b_edit, b_start)
+    elif k_priority in [1, 2]:
         bot.send_message(m.chat.id, TgMsgText.Priority.User.accept, reply_markup=markup)
-    elif trade.priority == 3:
-        markup = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-        b_help = types.KeyboardButton('📖Помощь')
-        b_edit = types.KeyboardButton('📋Редактор списка')
-        b_admin = types.KeyboardButton('⚙️Администрирование')
-        if trade.enable:
-            b_start = types.KeyboardButton('❌Off')
-        else:
-            b_start = types.KeyboardButton('✅️On')
-        markup.row(b_help, b_edit, b_start)
-        markup.row(b_admin)
+    elif k_priority == 3:
         bot.send_message(m.chat.id, TgMsgText.Priority.User.accept, reply_markup=markup)
 
 
@@ -188,27 +166,12 @@ def global_boost(m):
             trade = Trade.get(Trade.user_id == m.from_user.id)
 
             for t in trade_old.select().where((Trade.adv_priority == 1)):
-                if trade.priority in [1, 2]:
-                    markup = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-                    b_help = types.KeyboardButton('📖Помощь')
-                    b_edit = types.KeyboardButton('📋Редактор списка')
-                    if trade.enable:
-                        b_start = types.KeyboardButton('❌Off')
-                    else:
-                        b_start = types.KeyboardButton('✅️On')
-                    markup.row(b_help, b_edit, b_start)
+
+                markup, k_priority = keyboard_markup(trade)
+
+                if k_priority in [1, 2]:
                     bot.send_message(t.user_id, TgMsgText.Priority.User.boost_no, reply_markup=markup)
-                elif trade.priority == 3:
-                    markup = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-                    b_help = types.KeyboardButton('📖Помощь')
-                    b_edit = types.KeyboardButton('📋Редактор списка')
-                    b_admin = types.KeyboardButton('⚙️Администрирование')
-                    if trade.enable:
-                        b_start = types.KeyboardButton('❌Off')
-                    else:
-                        b_start = types.KeyboardButton('✅️On')
-                    markup.row(b_help, b_edit, b_start)
-                    markup.row(b_admin)
+                elif k_priority == 3:
                     bot.send_message(t.user_id, TgMsgText.Priority.User.boost_no, reply_markup=markup)
 
         elif boost_enable.value == 0:
@@ -219,27 +182,12 @@ def global_boost(m):
             trade = Trade.get(Trade.user_id == m.from_user.id)
 
             for t in Trade.select().where((Trade.adv_priority == 1)):
-                if trade.priority in [1, 2]:
-                    markup = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-                    b_help = types.KeyboardButton('📖Помощь')
-                    b_edit = types.KeyboardButton('📋Редактор списка')
-                    if trade.enable:
-                        b_start = types.KeyboardButton('❌Off')
-                    else:
-                        b_start = types.KeyboardButton('✅️On')
-                    markup.row(b_help, b_edit, b_start)
+
+                markup, k_priority = keyboard_markup(trade)
+
+                if k_priority in [1, 2]:
                     bot.send_message(t.user_id, TgMsgText.Priority.User.boost, reply_markup=markup)
-                elif trade.priority == 3:
-                    markup = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-                    b_help = types.KeyboardButton('📖Помощь')
-                    b_edit = types.KeyboardButton('📋Редактор списка')
-                    b_admin = types.KeyboardButton('⚙️Администрирование')
-                    if trade.enable:
-                        b_start = types.KeyboardButton('❌Off')
-                    else:
-                        b_start = types.KeyboardButton('✅️On')
-                    markup.row(b_help, b_edit, b_start)
-                    markup.row(b_admin)
+                elif k_priority == 3:
                     bot.send_message(t.user_id, TgMsgText.Priority.User.boost, reply_markup=markup)
         else:
             boost_enable.value = 0
@@ -270,33 +218,16 @@ def bot_set(m):
                         pass
 
                     if trade:
-                        if trade.priority == -1:
-                            markup = types.ReplyKeyboardRemove(selective=False)
+
+                        markup, k_priority = keyboard_markup(trade)
+
+                        if k_priority == -1:
                             bot.send_message(user_id, TgMsgText.Priority.User.ban, reply_markup=markup)
-                        elif trade.priority == 0:
-                            markup = types.ReplyKeyboardRemove(selective=False)
+                        elif k_priority == 0:
                             bot.send_message(user_id, TgMsgText.Priority.User.add, reply_markup=markup)
-                        elif trade.priority in [1, 2]:
-                            markup = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-                            b_help = types.KeyboardButton('📖Помощь')
-                            b_edit = types.KeyboardButton('📋Редактор списка')
-                            if trade.enable:
-                                b_start = types.KeyboardButton('❌Off')
-                            else:
-                                b_start = types.KeyboardButton('✅️On')
-                            markup.row(b_help, b_edit, b_start)
+                        elif k_priority in [1, 2]:
                             bot.send_message(user_id, TgMsgText.Priority.User.accept, reply_markup=markup)
-                        elif trade.priority == 3:
-                            markup = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-                            b_help = types.KeyboardButton('📖Помощь')
-                            b_edit = types.KeyboardButton('📋Редактор списка')
-                            b_admin = types.KeyboardButton('⚙️Администрирование')
-                            if trade.enable:
-                                b_start = types.KeyboardButton('❌Off')
-                            else:
-                                b_start = types.KeyboardButton('✅️On')
-                            markup.row(b_help, b_edit, b_start)
-                            markup.row(b_admin)
+                        elif k_priority == 3:
                             bot.send_message(user_id, TgMsgText.Priority.User.accept, reply_markup=markup)
                 else:
                     bot.send_message(m.chat.id, TgMsgText.Table.miss_priority)
@@ -333,52 +264,18 @@ def bot_set(m):
                         except:
                             pass
 
+                        markup, k_priority = keyboard_markup(trade)
+
                         if trade:
                             if (priority == 1) and (boost_enable == 1):
-                                if trade.priority in [1, 2]:
-                                    markup = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-                                    b_help = types.KeyboardButton('📖Помощь')
-                                    b_edit = types.KeyboardButton('📋Редактор списка')
-                                    if trade.enable:
-                                        b_start = types.KeyboardButton('❌Off')
-                                    else:
-                                        b_start = types.KeyboardButton('✅️On')
-                                    markup.row(b_help, b_edit, b_start)
+                                if k_priority in [1, 2]:
                                     bot.send_message(user_id, TgMsgText.Priority.User.boost, reply_markup=markup)
-                                elif trade.priority == 3:
-                                    markup = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-                                    b_help = types.KeyboardButton('📖Помощь')
-                                    b_edit = types.KeyboardButton('📋Редактор списка')
-                                    b_admin = types.KeyboardButton('⚙️Администрирование')
-                                    if trade.enable:
-                                        b_start = types.KeyboardButton('❌Off')
-                                    else:
-                                        b_start = types.KeyboardButton('✅️On')
-                                    markup.row(b_help, b_edit, b_start)
-                                    markup.row(b_admin)
+                                elif k_priority == 3:
                                     bot.send_message(user_id, TgMsgText.Priority.User.boost, reply_markup=markup)
                             elif (priority == 0) or (boost_enable == 0):
-                                if trade.priority in [1, 2]:
-                                    markup = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-                                    b_help = types.KeyboardButton('📖Помощь')
-                                    b_edit = types.KeyboardButton('📋Редактор списка')
-                                    if trade.enable:
-                                        b_start = types.KeyboardButton('❌Off')
-                                    else:
-                                        b_start = types.KeyboardButton('✅️On')
-                                    markup.row(b_help, b_edit, b_start)
+                                if k_priority in [1, 2]:
                                     bot.send_message(user_id, TgMsgText.Priority.User.boost_no, reply_markup=markup)
-                                elif trade.priority == 3:
-                                    markup = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-                                    b_help = types.KeyboardButton('📖Помощь')
-                                    b_edit = types.KeyboardButton('📋Редактор списка')
-                                    b_admin = types.KeyboardButton('⚙️Администрирование')
-                                    if trade.enable:
-                                        b_start = types.KeyboardButton('❌Off')
-                                    else:
-                                        b_start = types.KeyboardButton('✅️On')
-                                    markup.row(b_help, b_edit, b_start)
-                                    markup.row(b_admin)
+                                elif k_priority == 3:
                                     bot.send_message(user_id, TgMsgText.Priority.User.boost_no, reply_markup=markup)
                     else:
                         bot.send_message(m.chat.id, TgMsgText.Table.miss_boost_value)
@@ -471,18 +368,14 @@ def grinder(m):
 
                 if trade.priority in [1, 2, 3]:
                     if trade.status == 1:
-                        if m.text == '📖Помощь':
-                            if trade.priority in [1, 2]:
-                                markup = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-                                b_help = types.KeyboardButton('📖Помощь')
-                                b_edit = types.KeyboardButton('📋Редактор списка')
-                                if trade.enable:
-                                    b_start = types.KeyboardButton('❌Off')
-                                else:
-                                    b_start = types.KeyboardButton('✅️On')
-                                markup.row(b_help, b_edit, b_start)
 
-                                text = TgMsgText.Help.user + '\n' + TgMsgText.full_list_markdown + ''.join(trade.list_text) + '\n'
+                        markup, k_priority = keyboard_markup(trade)
+
+                        if m.text == '📖Помощь':
+                            if k_priority in [1, 2]:
+
+                                text = TgMsgText.Help.user + '\n' + TgMsgText.full_list_markdown + \
+                                       ''.join(trade.list_text) + '\n'
 
                                 if (trade.adv_priority == 1) and (global_boost == 1):
                                     boost_personal_enable = '*True*'
@@ -491,20 +384,12 @@ def grinder(m):
                                 else:
                                     boost_personal_enable = '*False*'
 
-                                bot.send_message(m.chat.id, text.format(boost_personal_enable), reply_markup=markup, parse_mode='Markdown')
-                            elif trade.priority == 3:
-                                markup = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-                                b_help = types.KeyboardButton('📖Помощь')
-                                b_edit = types.KeyboardButton('📋Редактор списка')
-                                b_admin = types.KeyboardButton('⚙️Администрирование')
-                                if trade.enable:
-                                    b_start = types.KeyboardButton('❌Off')
-                                else:
-                                    b_start = types.KeyboardButton('✅️On')
-                                markup.row(b_help, b_edit, b_start)
-                                markup.row(b_admin)
+                                bot.send_message(m.chat.id, text.format(boost_personal_enable), reply_markup=markup,
+                                                 parse_mode='Markdown')
+                            elif k_priority == 3:
 
-                                text = TgMsgText.Help.user + '\n' + TgMsgText.full_list_markdown + ''.join(trade.list_text) + '\n'
+                                text = TgMsgText.Help.user + '\n' + TgMsgText.full_list_markdown + \
+                                       ''.join(trade.list_text) + '\n'
 
                                 if boost_enable.value == 1:
                                     boost_personal_enable = '*True*'
@@ -518,83 +403,40 @@ def grinder(m):
                                 elif trade.adv_priority == 0:
                                     boost_personal_enable = boost_personal_enable + ''.join('(False)')
 
-                                bot.send_message(m.chat.id, text.format(boost_personal_enable), reply_markup=markup, parse_mode='Markdown')
+                                bot.send_message(m.chat.id, text.format(boost_personal_enable), reply_markup=markup,
+                                                 parse_mode='Markdown')
                         elif m.text == '⚙️Администрирование':
-                            if trade.priority == 3:
-                                markup = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-                                b_help = types.KeyboardButton('📖Помощь')
-                                b_edit = types.KeyboardButton('📋Редактор списка')
-                                b_admin = types.KeyboardButton('⚙️Администрирование')
-                                if trade.enable:
-                                    b_start = types.KeyboardButton('❌Off')
-                                else:
-                                    b_start = types.KeyboardButton('✅️On')
-                                markup.row(b_help, b_edit, b_start)
-                                markup.row(b_admin)
+                            if k_priority == 3:
                                 bot.send_message(m.chat.id, TgMsgText.Help.admin, reply_markup=markup, parse_mode='HTML')
                         elif m.text == '✅️On':
                             update = Trade.update(enable=True).where(Trade.user_id == m.from_user.id)
                             update.execute()
 
                             trade = Trade.get(Trade.user_id == m.from_user.id)
+                            markup, k_priority = keyboard_markup(trade)
 
                             if (trade.cw_id == '') or (trade.cw_token == ''):
                                 bot.send_message(m.chat.id, TgMsgText.no_auth, parse_mode='Markdown')
                                 return False
 
-                            if trade.priority in [1, 2]:
-                                markup = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-                                b_help = types.KeyboardButton('📖Помощь')
-                                b_edit = types.KeyboardButton('📋Редактор списка')
-                                if trade.enable:
-                                    b_start = types.KeyboardButton('❌Off')
-                                else:
-                                    b_start = types.KeyboardButton('✅️On')
-                                markup.row(b_help, b_edit, b_start)
+                            if k_priority in [1, 2]:
                                 bot.send_message(m.chat.id, TgMsgText.Enable.on, reply_markup=markup)
-                            elif trade.priority == 3:
-                                markup = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-                                b_help = types.KeyboardButton('📖Помощь')
-                                b_edit = types.KeyboardButton('📋Редактор списка')
-                                b_admin = types.KeyboardButton('⚙️Администрирование')
-                                if trade.enable:
-                                    b_start = types.KeyboardButton('❌Off')
-                                else:
-                                    b_start = types.KeyboardButton('✅️On')
-                                markup.row(b_help, b_edit, b_start)
-                                markup.row(b_admin)
+                            elif k_priority == 3:
                                 bot.send_message(m.chat.id, TgMsgText.Enable.on, reply_markup=markup)
                         elif m.text == '❌Off':
                             update = Trade.update(enable=False).where(Trade.user_id == m.from_user.id)
                             update.execute()
 
                             trade = Trade.get(Trade.user_id == m.from_user.id)
+                            markup, k_priority = keyboard_markup(trade)
 
                             if (trade.cw_id == '') or (trade.cw_token == ''):
                                 bot.send_message(m.chat.id, TgMsgText.no_auth, parse_mode='Markdown')
                                 return False
 
-                            if trade.priority in [1, 2]:
-                                markup = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-                                b_help = types.KeyboardButton('📖Помощь')
-                                b_edit = types.KeyboardButton('📋Редактор списка')
-                                if trade.enable:
-                                    b_start = types.KeyboardButton('❌Off')
-                                else:
-                                    b_start = types.KeyboardButton('✅️On')
-                                markup.row(b_help, b_edit, b_start)
+                            if k_priority in [1, 2]:
                                 bot.send_message(m.chat.id, TgMsgText.Enable.off, reply_markup=markup)
-                            elif trade.priority == 3:
-                                markup = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-                                b_help = types.KeyboardButton('📖Помощь')
-                                b_edit = types.KeyboardButton('📋Редактор списка')
-                                b_admin = types.KeyboardButton('⚙️Администрирование')
-                                if trade.enable:
-                                    b_start = types.KeyboardButton('❌Off')
-                                else:
-                                    b_start = types.KeyboardButton('✅️On')
-                                markup.row(b_help, b_edit, b_start)
-                                markup.row(b_admin)
+                            elif k_priority == 3:
                                 bot.send_message(m.chat.id, TgMsgText.Enable.off, reply_markup=markup)
                         elif m.text == '📋Редактор списка':
 
@@ -616,28 +458,11 @@ def grinder(m):
 
                             update = Trade.update(status=1).where(Trade.user_id == m.from_user.id)
                             update.execute()
+                            markup, k_priority = keyboard_markup(trade)
 
-                            if trade.priority in [1, 2]:
-                                markup = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-                                b_help = types.KeyboardButton('📖Помощь')
-                                b_edit = types.KeyboardButton('📋Редактор списка')
-                                if trade.enable:
-                                    b_start = types.KeyboardButton('❌Off')
-                                else:
-                                    b_start = types.KeyboardButton('✅️On')
-                                markup.row(b_help, b_edit, b_start)
+                            if k_priority in [1, 2]:
                                 bot.send_message(m.chat.id, TgMsgText.Priority.User.accept, reply_markup=markup)
-                            elif trade.priority == 3:
-                                markup = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-                                b_help = types.KeyboardButton('📖Помощь')
-                                b_edit = types.KeyboardButton('📋Редактор списка')
-                                b_admin = types.KeyboardButton('⚙️Администрирование')
-                                if trade.enable:
-                                    b_start = types.KeyboardButton('❌Off')
-                                else:
-                                    b_start = types.KeyboardButton('✅️On')
-                                markup.row(b_help, b_edit, b_start)
-                                markup.row(b_admin)
+                            elif k_priority == 3:
                                 bot.send_message(m.chat.id, TgMsgText.Priority.User.accept, reply_markup=markup)
                         else:
                             try:
@@ -655,29 +480,12 @@ def grinder(m):
                                     update.execute()
 
                                     trade = Trade.get(Trade.user_id == m.from_user.id)
+                                    markup, k_priority = keyboard_markup(trade)
 
-                                    if trade.priority in [1, 2]:
-                                        markup = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-                                        b_help = types.KeyboardButton('📖Помощь')
-                                        b_edit = types.KeyboardButton('📋Редактор списка')
-                                        if trade.enable:
-                                            b_start = types.KeyboardButton('❌Off')
-                                        else:
-                                            b_start = types.KeyboardButton('✅️On')
-                                        markup.row(b_help, b_edit, b_start)
+                                    if k_priority in [1, 2]:
                                         bot.send_message(m.chat.id, TgMsgText.list_edited, reply_markup=markup,
                                                          parse_mode='Markdown')
-                                    elif trade.priority == 3:
-                                        markup = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-                                        b_help = types.KeyboardButton('📖Помощь')
-                                        b_edit = types.KeyboardButton('📋Редактор списка')
-                                        b_admin = types.KeyboardButton('⚙️Администрирование')
-                                        if trade.enable:
-                                            b_start = types.KeyboardButton('❌Off')
-                                        else:
-                                            b_start = types.KeyboardButton('✅️On')
-                                        markup.row(b_help, b_edit, b_start)
-                                        markup.row(b_admin)
+                                    elif k_priority == 3:
                                         bot.send_message(m.chat.id, TgMsgText.list_edited, reply_markup=markup,
                                                          parse_mode='Markdown')
                             except:
@@ -698,7 +506,7 @@ def telepol():
         telepol()
 
 
-def sequence_priority3(boost_enable):
+def sequence_sender(boost_enable, sleep_time):
 
     while True:
 
@@ -735,101 +543,8 @@ def sequence_priority3(boost_enable):
         for i in range(10):
             for cw_token in users:
                 for pair in cw_token[1]:
-                    """print('WTB({}):{}[cost: {}]'.format(user_id[0], pair[0], pair[1]))"""
                     wtb(cw_token[0], pair[0], (math.floor(int(cw_token[2]) / int(pair[1]))), pair[1])
-                    time.sleep(PriorityTime.p3)
-
-
-#        time2 = time.time()
-#        print('{:s} function took {:.3f} ms'.format('s2', (time2 - time1) * 1000.0))
-#        sys.stdout.flush()
-
-
-def sequence_priority2(boost_enable):
-
-    while True:
-
-        users = []
-
-        if boost_enable.value == 1:
-            for user in Trade.select().where((Trade.priority == 3) & (Trade.enable == 1) & (Trade.adv_priority == 0)):
-                get_profile(user.cw_token)
-
-                profile = Profile.get(Profile.userId == user.user_id)
-
-                local = []
-
-                if int(profile.gold) > 0:
-                    local.append(user.cw_token)
-                    local.append(ast.literal_eval(user.list))
-                    local.append(profile.gold)
-                    users.append(local)
-        else:
-            for user in Trade.select().where((Trade.priority == 3) & (Trade.enable == 1)):
-                get_profile(user.cw_token)
-
-                profile = Profile.get(Profile.userId == user.user_id)
-
-                local = []
-
-                if int(profile.gold) > 0:
-                    local.append(user.cw_token)
-                    local.append(ast.literal_eval(user.list))
-                    local.append(profile.gold)
-                    users.append(local)
-
-#        time1 = time.time()
-        for i in range(10):
-            for cw_token in users:
-                for pair in cw_token[1]:
-                    """print('WTB({}):{}[cost: {}]'.format(user_id[0], pair[0], pair[1]))"""
-                    wtb(cw_token[0], pair[0], (math.floor(int(cw_token[2])/int(pair[1]))), pair[1])
-                    time.sleep(PriorityTime.p2)
-#        time2 = time.time()
-#        print('{:s} function took {:.3f} ms'.format('s2', (time2 - time1) * 1000.0))
-#        sys.stdout.flush()
-
-
-def sequence_priority1(boost_enable):
-
-    while True:
-
-        users = []
-
-        if boost_enable.value == 1:
-            for user in Trade.select().where((Trade.priority == 3) & (Trade.enable == 1) & (Trade.adv_priority == 0)):
-                get_profile(user.cw_token)
-
-                profile = Profile.get(Profile.userId == user.user_id)
-
-                local = []
-
-                if int(profile.gold) > 0:
-                    local.append(user.cw_token)
-                    local.append(ast.literal_eval(user.list))
-                    local.append(profile.gold)
-                    users.append(local)
-        else:
-            for user in Trade.select().where((Trade.priority == 3) & (Trade.enable == 1)):
-                get_profile(user.cw_token)
-
-                profile = Profile.get(Profile.userId == user.user_id)
-
-                local = []
-
-                if int(profile.gold) > 0:
-                    local.append(user.cw_token)
-                    local.append(ast.literal_eval(user.list))
-                    local.append(profile.gold)
-                    users.append(local)
-
-        #        time1 = time.time()
-        for i in range(10):
-            for cw_token in users:
-                for pair in cw_token[1]:
-                    """print('WTB({}):{}[cost: {}]'.format(user_id[0], pair[0], pair[1]))"""
-                    wtb(cw_token[0], pair[0], (math.floor(int(cw_token[2]) / int(pair[1]))), pair[1])
-                    time.sleep(PriorityTime.p1)
+                    time.sleep(sleep_time)
 
 
 #        time2 = time.time()
@@ -861,7 +576,6 @@ def boost(boost_enable):
             for i in range(10):
                 for cw_token in users:
                     for pair in cw_token[1]:
-                        """print('WTB({}):{}[cost: {}]'.format(user_id[0], pair[0], pair[1]))"""
                         wtb(cw_token[0], pair[0], (math.floor(int(cw_token[2]) / int(pair[1]))), pair[1])
                         time.sleep(PriorityTime.boost)
         #        time2 = time.time()
@@ -898,11 +612,12 @@ def sequence_grinder():
                 update.execute()
 
             elif '"action":"requestProfile","result":"Ok"' in str(body):
-                atk, ddef, castle, cclass, exp, lvl, gold, guild, guild_tag, mana, pouches, stamina, userName, userId  = get_profile_stats(str(body))
+                atk, ddef, castle, cclass, exp, lvl, gold, guild, guild_tag, mana, pouches, stamina, userName, \
+                userId = get_profile_stats(str(body))
 
                 update = Profile.update(atk=atk, ddef=ddef, castle=castle, cclass=cclass, exp=exp, lvl=lvl, gold=gold,
-                                      guild=guild, guild_tag=guild_tag, mana=mana, pouches=pouches, stamina=stamina,
-                                      userName=userName).where(Profile.userId == userId)
+                                        guild=guild, guild_tag=guild_tag, mana=mana, pouches=pouches, stamina=stamina,
+                                        userName=userName).where(Profile.userId == userId)
                 update.execute()
 
             elif '"action":"wantToBuy","result":"Ok"' in str(body):
@@ -919,9 +634,9 @@ if __name__ == '__main__':
     admin_update()
 
     g_boost = Process(target=boost, args=(boost_enable,))
-    sp3 = Process(target=sequence_priority3, args=(boost_enable,))
-    sp2 = Process(target=sequence_priority2, args=(boost_enable,))
-    sp1 = Process(target=sequence_priority1, args=(boost_enable,))
+    sp3 = Process(target=sequence_sender, args=(boost_enable, PriorityTime.p3))
+    sp2 = Process(target=sequence_sender, args=(boost_enable, PriorityTime.p2))
+    sp1 = Process(target=sequence_sender, args=(boost_enable, PriorityTime.p1))
 
     amqp = Process(target=sequence_grinder)
 

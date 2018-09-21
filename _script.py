@@ -188,3 +188,42 @@ def get_wtb_text(body):
     userId = text['payload']['userId']
 
     return item, userId
+
+
+def keyboard_markup(trade):
+
+    from telebot import types
+
+    if trade.priority == -1:
+        markup = types.ReplyKeyboardRemove(selective=False)
+
+    elif trade.priority == 0:
+        markup = types.ReplyKeyboardRemove(selective=False)
+
+    elif trade.priority in [1, 2]:
+        markup = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
+        b_help = types.KeyboardButton('📖Помощь')
+        b_edit = types.KeyboardButton('📋Редактор списка')
+        if trade.enable:
+            b_start = types.KeyboardButton('❌Off')
+        else:
+            b_start = types.KeyboardButton('✅️On')
+        markup.row(b_help, b_edit, b_start)
+
+    elif trade.priority == 3:
+        markup = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
+        b_help = types.KeyboardButton('📖Помощь')
+        b_edit = types.KeyboardButton('📋Редактор списка')
+        b_admin = types.KeyboardButton('⚙️Администрирование')
+        if trade.enable:
+            b_start = types.KeyboardButton('❌Off')
+        else:
+            b_start = types.KeyboardButton('✅️On')
+        markup.row(b_help, b_edit, b_start)
+        markup.row(b_admin)
+
+    else:
+        markup, trade.priority = False
+
+    return markup, trade.priority
+
