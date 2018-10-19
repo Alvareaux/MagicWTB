@@ -637,8 +637,7 @@ def sequence_grinder():
 
                 bot.send_message(user_id, TgMsgText.gratz.format(item))
 
-
-        time.sleep(0.1)
+        time.sleep(0.01)
 
 
 if __name__ == '__main__':

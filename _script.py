@@ -119,10 +119,11 @@ def get_json(body):
     def fix_xinvalid(m):
         return chr(int(m.group(1), 16))
 
-    def fix(s):
-        return xinvalid.sub(fix_xinvalid, s)
 
-    return json.loads(fix(body[2:-1]))
+    try:
+        return json.loads((xinvalid.sub(fix_xinvalid, body))[2:-1])
+    except TypeError:
+        return json.loads(xinvalid.sub(fix_xinvalid, body.decode('utf-8')))
 
 
 def get_token(body):
@@ -166,8 +167,14 @@ def get_profile_stats(body):
     exp = text['payload']['profile']['exp']
     lvl = text['payload']['profile']['lvl']
     gold = text['payload']['profile']['gold']
-    guild = text['payload']['profile']['guild']
-    guild_tag = text['payload']['profile']['guild_tag']
+    try:
+        guild = text['payload']['profile']['guild']
+    except KeyError:
+        guild = 'None'
+    try:
+        guild_tag = text['payload']['profile']['guild_tag']
+    except KeyError:
+        guild_tag = 'None'
     mana = text['payload']['profile']['mana']
     try:
         pouches = text['payload']['profile']['pouches']
